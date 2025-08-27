@@ -1,41 +1,49 @@
-// netlify/functions/state-save.js
-import { sql } from "./db.js";
+// ESM Netlify Function
+import { sql, ensureSchema } from './db.js';
 
-export default async (req) => {
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*', // en prod pon tu dominio
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'OPTIONS,POST',
+    'Content-Type': 'application/json; charset=utf-8',
   };
+}
 
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers });
+export async function handler(event) {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers: corsHeaders(), body: '' };
   }
-  if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers });
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, headers: corsHeaders(), body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
   try {
-    const { key, data } = await req.json();
-    if (!key || typeof data === "undefined") {
-      return new Response(JSON.stringify({ error: "Missing key or data" }), { status: 400, headers });
+    await ensureSchema();
+    const body = JSON.parse(event.body || '{}');
+    const client_id = (body.client_id || '').trim();
+    const state = body.state;
+
+    if (!client_id || typeof state !== 'object') {
+      return { statusCode: 400, headers: corsHeaders(), body: JSON.stringify({ error: 'client_id y state son obligatorios' }) };
     }
 
-    await sql`
-      CREATE TABLE IF NOT EXISTS app_state (
-        key TEXT PRIMARY KEY,
-        data JSONB NOT NULL,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-      )
+    const rows = await sql/*sql*/`
+      insert into app_state (client_id, state, updated_at)
+      values (${client_id}, ${JSON.stringify(state)}::jsonb, now())
+      on conflict (client_id) do update
+      set state = ${JSON.stringify(state)}::jsonb,
+          updated_at = now()
+      returning client_id, updated_at;
     `;
 
-    await sql`
-      INSERT INTO app_state (key, data) VALUES (${key}, ${sql.json(data)})
-      ON CONFLICT (key) DO UPDATE SET data = ${sql.json(data)}, updated_at = now()
-    `;
-
-    return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
+    return {
+      statusCode: 200,
+      headers: corsHeaders(),
+      body: JSON.stringify({ ok: true, client_id: rows[0].client_id, updated_at: rows[0].updated_at }),
+    };
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 500, headers });
+    console.error('state-save error', err);
+    return { statusCode: 500, headers: corsHeaders(), body: JSON.stringify({ error: 'internal_error' }) };
   }
-};
+}
