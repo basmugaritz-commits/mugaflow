@@ -1,7 +1,10 @@
 [build]
   publish = "."
-  # No hay comando de build porque es sitio estático + funciones
-  # Si tuvieras build de bundlers, añádelo aquí.
+  functions = "netlify/functions"
+  node_version = "18"
 
 [functions]
   node_bundler = "esbuild"
+
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
