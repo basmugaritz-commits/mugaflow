@@ -1,3 +1,4 @@
+// state-get.js
 import { sql } from './db.js';
 
 export default async (req) => {
@@ -29,10 +30,7 @@ export default async (req) => {
       });
     }
 
-    const rows = await sql`
-      SELECT data FROM app_state WHERE key = ${key}
-    `;
-
+    const rows = await sql`SELECT data FROM app_state WHERE key = ${key}`;
     if (rows.length === 0) {
       return new Response(JSON.stringify({ error: 'Not found' }), {
         status: 404,
