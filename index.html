@@ -1,0 +1,686 @@
+
+<!DOCTYPE html>
+
+<html lang="es">
+<head>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4A2E1F">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Ingredientes — Mermas, Planificador y Raciones Globales</title>
+<style>
+  :root{
+    --ink: #4A2E1F;
+    --ink-2: #5A3D2E;
+    --accent: #8B5E3C;
+    --line: #E2D8D1;
+    --bg: #FFFFFF;
+    --muted: #7C736D;
+    --highlight: #F6EFEA;
+    --rowShadow: 0 2px 0 rgba(90,61,46,0.06);
+  }
+  *{box-sizing:border-box}
+  html, body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+             font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;}
+  header{position:static;top:auto;background:#fff;z-index:1;border-bottom:1px solid var(--line)}
+  .wrap{max-width:1200px;margin:auto;padding:18px 20px}
+  h1{margin:0 0 8px 0;font-size:22px;letter-spacing:.2px}
+  nav a{color:var(--ink-2); text-decoration:none; font-weight:700}
+  nav span{color:#A7A29E}
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+  .toolbar .left, .toolbar .right{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  input[type="text"], input[type="number"], input[type="search"]{
+    border:1px solid var(--line);padding:10px;border-radius:8px;font-size:14px;outline:none;background:#fff
+  }
+  input[type="search"]{border-radius:999px;min-width:280px}
+  input::placeholder{color:var(--muted)}
+  button{
+    border:1px solid var(--ink-2);background:var(--ink-2);color:#fff;
+    padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px;
+  }
+  button.secondary{background:#fff;color:var(--ink-2);border-color:var(--ink-2)}
+  button.ghost{background:#fff;border-color:var(--line);color:var(--ink)}
+  button.small{padding:6px 10px;border-radius:8px;font-size:12px}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
+  .legend span{font-size:12px;color:var(--muted)}
+  main{padding:12px 20px 32px}
+  table{width:100%;border-collapse:separate;border-spacing:0 18px}
+  thead th{
+    position:sticky;top:0;background:var(--bg);z-index:2;
+    font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;
+    padding:10px 6px;border-bottom:1px solid var(--line);
+  }
+  tbody tr{background:#fff;border:1px solid var(--line);box-shadow: var(--rowShadow)}
+  tbody td{padding:12px 8px;vertical-align:middle}
+  .row{border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+  .namecell{min-width:220px}
+  .num{width:130px}
+  .readonly{background:#f9f7f5}
+  .highlight{outline:2px solid var(--accent); background:var(--highlight)}
+  .sum{font-weight:700}
+  .stack{display:flex;flex-direction:column;gap:8px}
+  .merma-cell{min-width:190px}
+  .merma-label{width:100%; font-size:12px; padding:8px 10px; border-radius:8px; border:1px solid var(--line)}
+  .merma-amount{width:100%}
+  .flex{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .tabs{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 4px 0}
+  .tablink{color:var(--ink-2);text-decoration:none;font-weight:700;cursor:pointer}
+  .tablink.active{color:#2b1a11;text-decoration:underline}
+  @media print{
+    header, .footer-note, .toolbar, .tabs{display:none!important}
+    thead th{position:static}
+  }
+</style>
+</head>
+<body>
+<header>
+<div class="wrap">
+<h1>Ingredientes — Mermas, Planificador y Raciones Globales</h1>
+<nav class="tabs">
+<a class="tablink active" data-tab="tab1">1) Mermas por fila</a> ·
+      <a class="tablink" data-tab="tab2">2) Planificador por rendimiento</a> ·
+      <a class="tablink" data-tab="tab3">3) Raciones globales</a>
+</nav>
+</div>
+</header>
+<section class="wrap" id="tab1">
+<div class="toolbar">
+<div class="left flex">
+<div class="flex" id="searchBox1">
+<input id="searchInput1" placeholder="Buscar ingrediente (Enter)" type="search"/>
+<button class="secondary" id="searchBtn1">Buscar</button>
+</div>
+<button class="secondary" id="addRow1">Añadir fila</button>
+<button class="ghost" id="clearAll1">Limpiar todo</button>
+<button class="secondary" id="gotoPlan">Planificador por raciones</button><button class="secondary" id="gotoGlobal">Raciones globales</button></div>
+<div class="right flex">
+<button class="secondary" id="exportCSV1">Exportar CSV</button>
+<button class="secondary" id="exportJSON1">Exportar JSON</button>
+<button class="ghost" id="print1">Imprimir / PDF</button>
+</div>
+</div>
+<div class="legend">
+<span>Cada fila tiene etiquetas propias para Merma 1, 2 y 3. Usa <b>Peso bruto</b> (g).</span>
+</div>
+<table>
+<thead>
+<tr>
+<th>Ingrediente</th>
+<th>Peso bruto (g)</th>
+<th>Merma 1</th>
+<th>Merma 2</th>
+<th>Merma 3</th>
+<th>Merma total</th>
+<th>Rendimiento (g)</th>
+<th>Rendimiento %</th>
+<th>Acciones</th>
+</tr>
+</thead>
+<tbody id="tbody1"></tbody>
+
+</table><div style="margin-top:16px; text-align:right"><button class="secondary" id="gotoPlanBottom">Planificador por raciones</button></div>
+<div class="footer-note" style="color:var(--muted);font-size:12px;margin-top:8px">Los datos se guardan en tu navegador (localStorage). Exporta CSV/JSON o imprime.</div>
+</section>
+<section class="wrap" id="tab2" style="display:none;">
+<div class="toolbar">
+<div class="left flex">
+<button class="secondary" id="pfImport">Importar del Tab 1</button>
+<button class="secondary" id="pfAddRow">Añadir fila</button>
+<button class="ghost" id="pfClear">Limpiar</button>
+</div>
+<div class="right flex">
+<button class="secondary" id="pfExportCSV">Exportar CSV</button>
+<button class="secondary" id="pfExportJSON">Exportar JSON</button>
+<button class="ghost" id="pfPrint">Imprimir / PDF</button>
+</div>
+</div>
+<div class="legend">
+<span>Define <b>% rendimiento</b>, <b>g/ración</b> y <b>raciones</b> por ingrediente.</span>
+</div>
+<table id="pfTable">
+<thead>
+<tr>
+<th>Ingrediente</th>
+<th>Rendimiento %</th>
+<th>g por ración</th>
+<th>Raciones</th>
+<th>Total ración</th>
+<th>Bruto necesario</th>
+<th>Acciones</th>
+</tr>
+</thead>
+<tbody></tbody>
+<tfoot>
+<tr class="row">
+<td class="sum">Totales</td>
+<td></td>
+<td></td>
+<td class="sum" id="pfTotRaciones">0</td>
+<td class="sum" id="pfTotTotalRacion">0 g</td>
+<td class="sum" id="pfTotBrutoNecesario">0 g</td>
+<td></td>
+</tr>
+</tfoot>
+</table>
+</section>
+<section class="wrap" id="tab3" style="display:none;">
+<div class="toolbar">
+<div class="left flex">
+<label for="qpRaciones"><b>Raciones:</b></label>
+<input id="qpRaciones" min="0" step="1" style="width:140px" type="number" value="0"/>
+<label for="qpGRacion"><b>g/ración (global):</b></label>
+<input id="qpGRacion" min="0" step="any" style="width:140px" type="number" value="1"/>
+</div>
+<div class="right flex">
+<button class="secondary" id="qpExportCSV">Exportar CSV</button>
+<button class="ghost" id="qpPrint">Imprimir / PDF</button>
+</div>
+</div>
+<div class="legend">
+<span>Para cada ingrediente del Tab 1 uso su <i>% rendimiento</i> y este <b>g/ración global</b>.</span>
+</div>
+<table id="qpTable" style="width:100%; border-collapse:separate; border-spacing:0 12px">
+<thead>
+<tr>
+<th>Ingrediente</th>
+<th>Rendimiento %</th>
+<th>g/ración (global)</th>
+<th>Raciones</th>
+<th>Bruto necesario</th>
+</tr>
+</thead>
+<tbody></tbody>
+
+</table>
+</section>
+<script>
+// ---------- Utilidades generales ----------
+const STORAGE1 = 'calc_tab1_v1';
+const STORAGE2 = 'calc_tab2_v1';
+
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const SAFE_ARR = x => Array.isArray(x) ? x : [];
+
+function parseNum(x){ return parseFloat(String(x).replace(',', '.')) || 0; }
+function formatExact(n){
+  const x = Number(n)||0;
+  // up to 10 decimals, then trim trailing zeros and dot; avoids visual rounding in most cases
+  let s = x.toFixed(10);
+  s = s.replace(/\.0+$/,'').replace(/(\.[0-9]*?)0+$/,'$1').replace(/\.$/,'');
+  return s;
+}
+function fmt(x){ return Number(x)||0; }
+function fmtPct(x){
+  const v = Number(x)||0;
+  return v.toFixed(2).replace(/\.00$/,'') + '%';
+}
+function fmtWeight(g){
+  const v = Number(g)||0;
+  if (v >= 1000){
+    const kg = v/1000;
+    return Number(kg.toFixed(3)).toString() + ' kg';
+  }
+  return formatExact(v) + ' g';
+}
+
+// ---------- Tabs ----------
+const links = $$('.tablink');
+function showTab(id){
+  ['tab1','tab2','tab3'].forEach(t=> { $('#'+t).style.display = (t===id?'block':'none'); });
+  links.forEach(a=> a.classList.toggle('active', a.dataset.tab===id));
+  if(id==='tab3') qpBuild();
+}
+links.forEach(a=> a.addEventListener('click', (e)=>{ e.preventDefault(); showTab(a.dataset.tab); }));
+
+// ---------- TAB 1: Mermas por fila ----------
+const START_ROWS = 20;
+function addRow1(data={}){
+  const tr = document.createElement('tr');
+  tr.className = 'row';
+  // name
+  const tdName = document.createElement('td');
+  const name = document.createElement('input'); name.type='text'; name.className='name'; name.placeholder='Ingrediente'; name.value=data.name||''; tdName.appendChild(name); tr.appendChild(tdName);
+  // bruto
+  const tdB = document.createElement('td');
+  const bruto = document.createElement('input'); bruto.type='number'; bruto.step='any'; bruto.className='num neto'; bruto.placeholder='0'; bruto.value=data.bruto||''; tdB.appendChild(bruto); tr.appendChild(tdB);
+  // merma1
+  const tdM1 = document.createElement('td'); tdM1.className='merma-cell';
+  const m1l = document.createElement('input'); m1l.type='text'; m1l.className='merma-label m1label'; m1l.placeholder='Merma 1'; m1l.value=data.m1label||'';
+  const m1 = document.createElement('input'); m1.type='number'; m1.step='any'; m1.className='num m1 merma-amount'; m1.placeholder='0'; m1.value=data.m1||'';
+  const wrap1 = document.createElement('div'); wrap1.className='stack'; wrap1.append(m1l,m1); tdM1.appendChild(wrap1); tr.appendChild(tdM1);
+  // merma2
+  const tdM2 = document.createElement('td'); tdM2.className='merma-cell';
+  const m2l = document.createElement('input'); m2l.type='text'; m2l.className='merma-label m2label'; m2l.placeholder='Merma 2'; m2l.value=data.m2label||'';
+  const m2 = document.createElement('input'); m2.type='number'; m2.step='any'; m2.className='num m2 merma-amount'; m2.placeholder='0'; m2.value=data.m2||'';
+  const wrap2 = document.createElement('div'); wrap2.className='stack'; wrap2.append(m2l,m2); tdM2.appendChild(wrap2); tr.appendChild(tdM2);
+  // merma3
+  const tdM3 = document.createElement('td'); tdM3.className='merma-cell';
+  const m3l = document.createElement('input'); m3l.type='text'; m3l.className='merma-label m3label'; m3l.placeholder='Merma 3'; m3l.value=data.m3label||'';
+  const m3 = document.createElement('input'); m3.type='number'; m3.step='any'; m3.className='num m3 merma-amount'; m3.placeholder='0'; m3.value=data.m3||'';
+  const wrap3 = document.createElement('div'); wrap3.className='stack'; wrap3.append(m3l,m3); tdM3.appendChild(wrap3); tr.appendChild(tdM3);
+  // merma total
+  const tdMt = document.createElement('td'); const mt = document.createElement('input'); mt.type='text'; mt.className='num readonly mt'; mt.readOnly=true; tdMt.appendChild(mt); tr.appendChild(tdMt);
+  // rendimiento g
+  const tdR = document.createElement('td'); const rend = document.createElement('input'); rend.type='text'; rend.className='num readonly rend'; rend.readOnly=true; tdR.appendChild(rend); tr.appendChild(tdR);
+  // rendimiento %
+  const tdPct = document.createElement('td'); const pct = document.createElement('input'); pct.type='text'; pct.className='num readonly pct'; pct.readOnly=true; tdPct.appendChild(pct); tr.appendChild(tdPct);
+  // actions
+  const tdA = document.createElement('td');
+  const del = document.createElement('button'); del.className='ghost small'; del.textContent='Eliminar';
+  del.addEventListener('click', ()=>{ tr.remove(); recalc1(); save1(); });
+  tdA.appendChild(del); tr.appendChild(tdA);
+
+  [name, bruto, m1, m2, m3, m1l, m2l, m3l].forEach(inp=> inp.addEventListener('input', ()=>{ recalc1(); save1(); }));
+  $('#tbody1').appendChild(tr);
+}
+
+function recalc1(){
+  let tB=0, tM1=0, tM2=0, tM3=0, tMt=0, tR=0;
+  $$('#tbody1 tr').forEach(tr=>{
+    const bruto = parseNum(tr.querySelector('.neto').value);
+    const m1 = parseNum(tr.querySelector('.m1').value);
+    const m2 = parseNum(tr.querySelector('.m2').value);
+    const m3 = parseNum(tr.querySelector('.m3').value);
+    const mt = m1+m2+m3;
+    const rend = Math.max(bruto - mt, 0);
+    const pct = bruto>0 ? (rend/bruto*100) : 0;
+    tr.querySelector('.mt').value = fmtWeight(mt);
+    tr.querySelector('.rend').value = fmtWeight(rend);
+    tr.querySelector('.pct').value = fmtPct(pct);
+    tB += bruto; tM1+=m1; tM2+=m2; tM3+=m3; tMt+=mt; tR+=rend;
+  });
+  $('#t1TotBruto').textContent = fmtWeight(tB);
+  $('#t1TotM1').textContent = fmtWeight(tM1);
+  $('#t1TotM2').textContent = fmtWeight(tM2);
+  $('#t1TotM3').textContent = fmtWeight(tM3);
+  $('#t1TotMerma').textContent = fmtWeight(tMt);
+  $('#t1TotRend').textContent = fmtWeight(tR);
+  const pctGlobal = tB>0 ? (tR/tB*100) : 0;
+  $('#t1TotPct').textContent = fmtPct(pctGlobal);
+}
+
+function save1(){
+  const rows = $$('#tbody1 tr').map(tr=>({
+    name: tr.querySelector('.name').value||'',
+    bruto: tr.querySelector('.neto').value||'',
+    m1label: tr.querySelector('.m1label').value||'',
+    m1: tr.querySelector('.m1').value||'',
+    m2label: tr.querySelector('.m2label').value||'',
+    m2: tr.querySelector('.m2').value||'',
+    m3label: tr.querySelector('.m3label').value||'',
+    m3: tr.querySelector('.m3').value||''
+  }));
+  localStorage.setItem(STORAGE1, JSON.stringify({rows}));
+}
+
+function restore1(){
+  const raw = localStorage.getItem(STORAGE1);
+  if(!raw){
+    for(let i=0;i<20;i++) addRow1();
+    recalc1();
+    return;
+  }
+  try{
+    const data = JSON.parse(raw);
+    const rows = SAFE_ARR(data.rows);
+    if(rows.length===0){ for(let i=0;i<20;i++) addRow1(); }
+    else rows.forEach(r=> addRow1(r));
+    recalc1();
+  }catch(e){
+    for(let i=0;i<20;i++) addRow1();
+    recalc1();
+  }
+}
+
+// search Tab1
+$('#searchBtn1').addEventListener('click', ()=>{
+  const q = ($('#searchInput1').value||'').trim().toLowerCase();
+  if(!q) return;
+  let found=null;
+  $$('#tbody1 tr').forEach(tr=>{
+    const name = (tr.querySelector('.name').value||'').trim().toLowerCase();
+    if(!found && name.includes(q)) found=tr;
+    tr.classList.remove('highlight');
+  });
+  if(found){ found.classList.add('highlight'); found.scrollIntoView({behavior:'smooth', block:'center'}); }
+});
+$('#searchInput1').addEventListener('keydown', (e)=>{ if(e.key==='Enter') $('#searchBtn1').click(); });
+$('#addRow1').addEventListener('click', ()=>{ addRow1(); recalc1(); save1(); });
+$('#clearAll1').addEventListener('click', ()=>{ if(confirm('¿Seguro que quieres limpiar todo?')){ localStorage.removeItem(STORAGE1); $('#tbody1').innerHTML=''; for(let i=0;i<20;i++) addRow1(); recalc1(); } });
+$('#exportCSV1').addEventListener('click', ()=>{
+  const headers = ['Ingrediente','Peso bruto (g)','Merma1 etiqueta','Merma1 (g)','Merma2 etiqueta','Merma2 (g)','Merma3 etiqueta','Merma3 (g)','Merma total (g)','Rendimiento (g)','Rendimiento %'];
+  const rows=[];
+  $$('#tbody1 tr').forEach(tr=>{
+    const bruto = parseNum(tr.querySelector('.neto').value||0);
+    const m1 = parseNum(tr.querySelector('.m1').value||0);
+    const m2 = parseNum(tr.querySelector('.m2').value||0);
+    const m3 = parseNum(tr.querySelector('.m3').value||0);
+    const mt = m1+m2+m3;
+    const rend = Math.max(bruto-mt,0);
+    const pct = bruto>0 ? (rend/bruto*100) : 0;
+    rows.push([
+      tr.querySelector('.name').value||'',
+      bruto, tr.querySelector('.m1label').value||'', m1,
+      tr.querySelector('.m2label').value||'', m2,
+      tr.querySelector('.m3label').value||'', m3,
+      mt, rend, Math.round(pct*10)/10 + '%'
+    ]);
+  });
+  const csv = [headers.join(','), ...rows.map(r=> r.map(x=> `"${String(x).replace(/"/g,'""')}"`).join(','))].join('\n');
+  download('tab1.csv', csv, 'text/csv');
+});
+$('#exportJSON1').addEventListener('click', ()=>{
+  const out={filas:[]};
+  $$('#tbody1 tr').forEach(tr=>{
+    const bruto = parseNum(tr.querySelector('.neto').value||0);
+    const m1 = parseNum(tr.querySelector('.m1').value||0);
+    const m2 = parseNum(tr.querySelector('.m2').value||0);
+    const m3 = parseNum(tr.querySelector('.m3').value||0);
+    const mt = m1+m2+m3;
+    const rend = Math.max(bruto-mt,0);
+    const pct = bruto>0 ? (rend/bruto*100) : 0;
+    out.filas.push({
+      ingrediente: tr.querySelector('.name').value||'',
+      bruto_g: bruto,
+      merma1_nombre: tr.querySelector('.m1label').value||'',
+      merma1_g: m1,
+      merma2_nombre: tr.querySelector('.m2label').value||'',
+      merma2_g: m2,
+      merma3_nombre: tr.querySelector('.m3label').value||'',
+      merma3_g: m3,
+      merma_total_g: mt,
+      rendimiento_g: rend,
+      rendimiento_pct: Math.round(pct*10)/10
+    });
+  });
+  download('tab1.json', JSON.stringify(out,null,2), 'application/json');
+});
+$('#print1').addEventListener('click', ()=> window.print());
+
+// ---------- TAB 2: Planificador por rendimiento ----------
+function addRowPF(data={}){
+  const tr = document.createElement('tr'); tr.className='row';
+  const tdN = document.createElement('td'); const name = elInput('pfName', data.name||''); tdN.appendChild(name); tr.appendChild(tdN);
+  const tdP = document.createElement('td'); const pct = elNum('pfPct', data.pct||''); tdP.appendChild(pct); tr.appendChild(tdP);
+  const tdG = document.createElement('td'); const g = elNum('pfG', data.gramos||''); tdG.appendChild(g); tr.appendChild(tdG);
+  const tdR = document.createElement('td'); const r = elNum('pfR', data.raciones||''); tdR.appendChild(r); tr.appendChild(tdR);
+  const tdTR = document.createElement('td'); const tR = elRO('pfTotalR'); tdTR.appendChild(tR); tr.appendChild(tdTR);
+  const tdB = document.createElement('td'); const b = elRO('pfBruto'); tdB.appendChild(b); tr.appendChild(tdB);
+  const tdA = document.createElement('td'); const del = document.createElement('button'); del.className='ghost small'; del.textContent='Eliminar'; del.onclick=()=>{ tr.remove(); recalcPF(); savePF(); }; tdA.appendChild(del); tr.appendChild(tdA);
+  [name,pct,g,r].forEach(x=> x.addEventListener('input', ()=>{ recalcPF(); savePF(); }));
+  $('#pfTable tbody').appendChild(tr);
+}
+
+function recalcPF(){
+  let totR=0, totTR=0, totB=0;
+  $$('#pfTable tbody tr').forEach(tr=>{
+    const pct = Math.max(0, Math.min(100, parseNum(tr.querySelector('.pfPct').value)));
+    const g = Math.max(0, parseNum(tr.querySelector('.pfG').value));
+    const r = Math.max(0, parseNum(tr.querySelector('.pfR').value));
+    const totalR = g*r;
+    const bruto = pct>0 ? (totalR/(pct/100)) : 0;
+    tr.querySelector('.pfTotalR').value = fmtWeight(totalR);
+    tr.querySelector('.pfBruto').value = fmtWeight(bruto);
+    totR += r; totTR += totalR; totB += bruto;
+  });
+  $('#pfTotRaciones').textContent = formatExact(totR);
+  $('#pfTotTotalRacion').textContent = fmtWeight(totTR);
+  $('#pfTotBrutoNecesario').textContent = fmtWeight(totB);
+}
+
+function savePF(){
+  const rows = $$('#pfTable tbody tr').map(tr=>({
+    name: tr.querySelector('.pfName').value||'',
+    pct: tr.querySelector('.pfPct').value||'',
+    gramos: tr.querySelector('.pfG').value||'',
+    raciones: tr.querySelector('.pfR').value||''
+  }));
+  localStorage.setItem(STORAGE2, JSON.stringify({rows}));
+}
+
+function restorePF(){
+  const raw = localStorage.getItem(STORAGE2);
+  if(!raw) return;
+  try{
+    const data = JSON.parse(raw);
+    SAFE_ARR(data.rows).forEach(r=> addRowPF(r));
+    recalcPF();
+  }catch(e){}
+}
+
+$('#pfAddRow').addEventListener('click', ()=>{ addRowPF(); recalcPF(); savePF(); });
+$('#pfClear').addEventListener('click', ()=>{ if(confirm('¿Seguro limpiar planificador?')){ localStorage.removeItem(STORAGE2); $('#pfTable tbody').innerHTML=''; recalcPF(); } });
+$('#pfExportCSV').addEventListener('click', ()=>{
+  const headers = ['Ingrediente','Rendimiento %','g por ración','Raciones','Total ración (g)','Bruto necesario (g)'];
+  const rows=[];
+  $$('#pfTable tbody tr').forEach(tr=>{
+    const pct = parseNum(tr.querySelector('.pfPct').value||0);
+    const g = parseNum(tr.querySelector('.pfG').value||0);
+    const r = parseNum(tr.querySelector('.pfR').value||0);
+    const totalR = g*r;
+    const bruto = pct>0 ? (totalR/(pct/100)) : 0;
+    rows.push([tr.querySelector('.pfName').value||'', pct, g, r, totalR, bruto]);
+  });
+  const csv = [headers.join(','), ...rows.map(r=> r.map(x=> `"${String(x).replace(/"/g,'""')}"`).join(','))].join('\n');
+  download('planificador.csv', csv, 'text/csv');
+});
+$('#pfExportJSON').addEventListener('click', ()=>{
+  const out={filas:[]};
+  $$('#pfTable tbody tr').forEach(tr=>{
+    const pct = parseNum(tr.querySelector('.pfPct').value||0);
+    const g = parseNum(tr.querySelector('.pfG').value||0);
+    const r = parseNum(tr.querySelector('.pfR').value||0);
+    const totalR = g*r;
+    const bruto = pct>0 ? (totalR/(pct/100)) : 0;
+    out.filas.push({
+      ingrediente: tr.querySelector('.pfName').value||'',
+      rendimiento_pct: pct,
+      gramos_por_racion: g,
+      raciones: r,
+      total_racion_g: totalR,
+      bruto_necesario_g: bruto
+    });
+  });
+  download('planificador.json', JSON.stringify(out,null,2), 'application/json');
+});
+$('#pfPrint').addEventListener('click', ()=> window.print());
+$('#pfImport').addEventListener('click', ()=>{
+  const names = new Set();
+  $$('#pfTable tbody tr .pfName').forEach(inp=> names.add((inp.value||'').trim().toLowerCase()));
+  $$('#tbody1 tr').forEach(tr=>{
+    const n = (tr.querySelector('.name').value||'').trim();
+    if(!n) return;
+    const pctStr = (tr.querySelector('.pct').value||'0').replace('%','').trim();
+    const pct = Math.max(0, Math.min(100, parseNum(pctStr)));
+    if(!names.has(n.toLowerCase())){
+      addRowPF({name:n, pct});
+      names.add(n.toLowerCase());
+    }else{
+      // update existing
+      $$('#pfTable tbody tr').forEach(r=>{
+        if((r.querySelector('.pfName').value||'').trim().toLowerCase()===n.toLowerCase()){
+          r.querySelector('.pfPct').value = pct;
+        }
+      });
+    }
+  });
+  recalcPF(); savePF();
+});
+
+function elInput(cls, val){ const i=document.createElement('input'); i.type='text'; i.className=''+cls; i.value=val; i.placeholder='Ingrediente'; return i; }
+function elNum(cls, val){ const i=document.createElement('input'); i.type='number'; i.step='any'; i.className='num '+cls; i.value=val; i.placeholder='0'; return i; }
+function elRO(cls){ const i=document.createElement('input'); i.type='text'; i.readOnly=true; i.className='num readonly '+cls; return i; }
+
+// ---------- TAB 3: Raciones globales ----------
+function qpBuild(){
+  const tbody = $('#qpTable tbody'); tbody.innerHTML='';
+  const raciones = Math.max(0, parseNum($('#qpRaciones').value||0));
+  const gRac = Math.max(0, parseNum($('#qpGRacion').value||0));
+  let totR=0, totB=0;
+  $$('#tbody1 tr').forEach(tr=>{
+    const name = (tr.querySelector('.name').value||'').trim();
+    if(!name) return;
+    const pctStr = (tr.querySelector('.pct').value||'0').replace('%','').trim();
+    const pct = Math.max(0, Math.min(100, parseNum(pctStr)));
+    const bruto = pct>0 ? (gRac * raciones) / (pct/100) : 0;
+    const row = document.createElement('tr'); row.className='row';
+    row.innerHTML = '<td>'+name+'</td><td>'+ (pct? (Math.round(pct*10)/10):0) + '%</td><td>'+ gRac +'</td><td>'+ raciones +'</td><td>'+ fmtWeight(bruto) +'</td>';
+    tbody.appendChild(row);
+    totR += raciones; totB += bruto;
+  });
+  $('#qpTotRac').textContent = formatExact(totR);
+  $('#qpTotBruto').textContent = fmtWeight(totB);
+}
+$('#qpRaciones').addEventListener('input', qpBuild);
+$('#qpGRacion').addEventListener('input', qpBuild);
+$('#qpExportCSV').addEventListener('click', ()=>{
+  const r = ($('#qpRaciones').value||'0');
+  const g = ($('#qpGRacion').value||'0');
+  const headers = ['Ingrediente','Rendimiento %','g/ración (global)','Raciones','Bruto necesario (g)'];
+  const rows=[];
+  $$('#tbody1 tr').forEach(tr=>{
+    const name = (tr.querySelector('.name').value||'').trim(); if(!name) return;
+    const pctStr = (tr.querySelector('.pct').value||'0').replace('%','').trim();
+    const pct = Math.max(0, Math.min(100, parseNum(pctStr)));
+    const bruto = pct>0 ? (parseNum(g) * parseNum(r)) / (pct/100) : 0;
+    rows.push([name, pct, parseNum(g), parseNum(r), bruto]);
+  });
+  const csv = [headers.join(','), ...rows.map(r=> r.map(x=> `"${String(x).replace(/"/g,'""')}"`).join(','))].join('\n');
+  download(`raciones_globales_${r}.csv`, csv, 'text/csv');
+});
+$('#qpPrint').addEventListener('click', ()=> window.print());
+
+// ---------- Helpers ----------
+function download(filename, content, mime){
+  const blob = new Blob([content], {type:mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
+// ---------- INIT ----------
+(function init(){
+  restore1();
+  // Ensure at least one row in planificador full for UX
+  restorePF();
+  if($$('#pfTable tbody tr').length===0) addRowPF();
+  recalcPF();
+  // Default tab: 1
+  showTab('tab1');
+})();
+
+
+function gotoPlannerWith({name, pct, g, r}){
+  showTab('tab2');
+  // find existing row
+  let existing = null;
+  document.querySelectorAll('#pfTable tbody tr').forEach(tr=>{
+    const n = (tr.querySelector('.pfName').value||'').trim().toLowerCase();
+    if(n === String(name||'').trim().toLowerCase()) existing = tr;
+  });
+  if(!existing){
+    // add new
+    const data = {name: name||'', pct: pct||'', gramos: g||'', raciones: r||''};
+    addRowPF(data);
+  }else{
+    if(pct!==undefined && pct!=='') existing.querySelector('.pfPct').value = pct;
+    if(g!==undefined && g!=='') existing.querySelector('.pfG').value = g;
+    if(r!==undefined && r!=='') existing.querySelector('.pfR').value = r;
+  }
+  recalcPF(); savePF();
+}
+document.getElementById('gotoPlan').addEventListener('click', ()=> showTab('tab2'));
+document.getElementById('gotoGlobal').addEventListener('click', ()=> showTab('tab3'));
+
+document.getElementById('gotoPlanBottom').addEventListener('click', ()=> showTab('tab2'));
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.error('SW reg error', err));
+  });
+}
+</script>
+
+
+<script>
+async function remoteLoad(key){
+  try{ const r=await fetch('/.netlify/functions/state-get?key='+encodeURIComponent(key)); if(!r.ok) return null; const j=await r.json(); return j.data||null; }catch(e){ return null; }
+}
+async function remoteSave(key, data){
+  try{ await fetch('/.netlify/functions/state-save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key,data})}); }catch(e){}
+}
+(function hook(){
+  const tryHook = ()=>{
+    const g=window;
+    if(g.save1 && !g._save1_hooked){
+      const orig=g.save1;
+      g.save1 = async function(){ const res=orig.apply(this,arguments);
+        try{
+          const rows = Array.from(document.querySelectorAll('#tbody1 tr')).map(tr=>({
+            name: tr.querySelector('.name')?.value||'',
+            bruto: tr.querySelector('.neto')?.value||'',
+            m1label: tr.querySelector('.m1label')?.value||'',
+            m1: tr.querySelector('.m1')?.value||'',
+            m2label: tr.querySelector('.m2label')?.value||'',
+            m2: tr.querySelector('.m2')?.value||'',
+            m3label: tr.querySelector('.m3label')?.value||'',
+            m3: tr.querySelector('.m3')?.value||''
+          }));
+          remoteSave('tab1',{rows});
+        }catch(e){}
+        return res;
+      }; g._save1_hooked=true;
+    }
+    if(g.restore1 && !g._restore1_hooked){
+      const orig=g.restore1;
+      g.restore1 = async function(){
+        const r = await remoteLoad('tab1');
+        if(r && Array.isArray(r.rows) && r.rows.length){
+          const tb=document.getElementById('tbody1'); if(tb) tb.innerHTML='';
+          r.rows.forEach(row=> g.addRow1 && g.addRow1(row));
+          g.recalc1 && g.recalc1();
+          return;
+        }
+        return orig.apply(this,arguments);
+      }; g._restore1_hooked=true;
+    }
+    if(g.savePF && !g._savePF_hooked){
+      const orig=g.savePF;
+      g.savePF = async function(){ const res=orig.apply(this,arguments);
+        try{
+          const rows = Array.from(document.querySelectorAll('#pfTable tbody tr')).map(tr=>({
+            name: tr.querySelector('.pfName')?.value||'',
+            pct: tr.querySelector('.pfPct')?.value||'',
+            gramos: tr.querySelector('.pfG')?.value||'',
+            raciones: tr.querySelector('.pfR')?.value||''
+          }));
+          remoteSave('tab2',{rows});
+        }catch(e){}
+        return res;
+      }; g._savePF_hooked=true;
+    }
+    if(g.restorePF && !g._restorePF_hooked){
+      const orig=g.restorePF;
+      g.restorePF = async function(){
+        const r = await remoteLoad('tab2');
+        if(r && Array.isArray(r.rows) && r.rows.length){
+          const tb=document.querySelector('#pfTable tbody'); if(tb) tb.innerHTML='';
+          r.rows.forEach(row=> g.addRowPF && g.addRowPF(row));
+          g.recalcPF && g.recalcPF();
+          return;
+        }
+        return orig.apply(this,arguments);
+      }; g._restorePF_hooked=true;
+    }
+    if('serviceWorker' in navigator){ window.addEventListener('load', ()=> navigator.serviceWorker.register('sw.js').catch(()=>{})); }
+    if(g._save1_hooked && g._restore1_hooked && g._savePF_hooked && g._restorePF_hooked) return;
+    setTimeout(tryHook,300);
+  };
+  tryHook();
+})();
+</script>
+
+</body>
+</html>
