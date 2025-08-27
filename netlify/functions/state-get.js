@@ -1,42 +1,43 @@
-// netlify/functions/state-get.js
-import { sql } from "./db.js";
+// ESM Netlify Function
+import { sql, ensureSchema } from './db.js';
 
-export default async (req) => {
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*', // en prod pon tu dominio
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'OPTIONS,GET',
+    'Content-Type': 'application/json; charset=utf-8',
   };
+}
 
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers });
+export async function handler(event) {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers: corsHeaders(), body: '' };
   }
-  if (req.method !== "GET") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers });
+  if (event.httpMethod !== 'GET') {
+    return { statusCode: 405, headers: corsHeaders(), body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
   try {
-    const url = new URL(req.url);
-    const key = url.searchParams.get("key");
-    if (!key) {
-      return new Response(JSON.stringify({ error: "Missing key" }), { status: 400, headers });
+    await ensureSchema();
+    const client_id = (event.queryStringParameters?.client_id || '').trim();
+    if (!client_id) {
+      return { statusCode: 400, headers: corsHeaders(), body: JSON.stringify({ error: 'client_id requerido' }) };
     }
 
-    await sql`
-      CREATE TABLE IF NOT EXISTS app_state (
-        key TEXT PRIMARY KEY,
-        data JSONB NOT NULL,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-      )
-    `;
+    const rows = await sql/*sql*/`select state, updated_at from app_state where client_id = ${client_id};`;
 
-    const rows = await sql`SELECT data FROM app_state WHERE key = ${key}`;
     if (rows.length === 0) {
-      return new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers });
+      return { statusCode: 200, headers: corsHeaders(), body: JSON.stringify({ state: null, updated_at: null }) };
     }
 
-    return new Response(JSON.stringify({ data: rows[0].data }), { status: 200, headers });
+    return {
+      statusCode: 200,
+      headers: corsHeaders(),
+      body: JSON.stringify({ state: rows[0].state, updated_at: rows[0].updated_at }),
+    };
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err?.message || err) }), { status: 500, headers });
+    console.error('state-get error', err);
+    return { statusCode: 500, headers: corsHeaders(), body: JSON.stringify({ error: 'internal_error' }) };
   }
-};
+}
