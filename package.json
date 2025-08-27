@@ -1,8 +1,8 @@
 {
-  "name": "rendimientos-suite3",
+  "name": "mugaflow",
   "private": true,
   "type": "module",
   "dependencies": {
-    "@netlify/neon": "0.7.0"
+    "@neondatabase/serverless": "latest"
   }
 }
