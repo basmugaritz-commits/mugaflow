@@ -1,7 +1,7 @@
 [build]
   publish = "."
-  functions = "netlify/functions"
+  # No hay comando de build porque es sitio estático + funciones
+  # Si tuvieras build de bundlers, añádelo aquí.
 
 [functions]
-  directory = "netlify/functions"
   node_bundler = "esbuild"
