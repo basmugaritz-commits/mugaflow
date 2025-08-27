@@ -1,13 +1,37 @@
-const CACHE_NAME='rend-suite3-v1';
-const OFFLINE=['./index.html','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(OFFLINE)).then(()=>self.skipWaiting())));
-self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.map(k=>k!==CACHE_NAME?caches.delete(k):null)))).then(()=>self.clients.claim()));
-self.addEventListener('fetch',e=>{
-  const url=new URL(e.request.url);
-  if(url.origin!==location.origin) return;
-  if(url.pathname.endsWith('.html')||url.pathname==='/'){
-    e.respondWith(fetch(e.request).then(r=>{caches.open(CACHE_NAME).then(c=>c.put(e.request,r.clone())); return r;}).catch(()=>caches.match(e.request).then(x=>x||caches.match('./index.html'))));
-  }else{
-    e.respondWith(caches.match(e.request).then(x=>x||fetch(e.request).then(r=>{caches.open(CACHE_NAME).then(c=>c.put(e.request,r.clone())); return r;})));
+// Cache estático sencillo (no cachea las funciones /.netlify/functions/*)
+const CACHE = 'app-cache-v1';
+const ASSETS = [
+  '/',            // netlify sirve index.html
+  '/index.html',
+  '/manifest.json'
+];
+
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', (e) => {
+  const url = new URL(e.request.url);
+  // Nunca cachear las funciones
+  if (url.pathname.startsWith('/.netlify/functions/')) return;
+
+  // Network-first, fallback a cache para HTML; cache-first para assets
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).catch(() => caches.match('/index.html'))
+    );
+    return;
   }
+
+  e.respondWith(
+    caches.match(e.request).then(cached => cached || fetch(e.request))
+  );
 });
