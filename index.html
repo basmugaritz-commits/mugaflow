@@ -5,141 +5,115 @@
   <title>Control rendimientos y pedidos - suite 3</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#000000" />
-  <!-- (Opcional) si ya tienes manifest y sw, déjalo igual -->
   <link rel="manifest" href="manifest.json" />
   <style>
-    /* Estilos mínimos; tu app puede traer los suyos */
     body{font-family:system-ui,Arial,sans-serif;margin:0;padding:0 12px 60px}
     header{position:sticky;top:0;background:#fff;border-bottom:1px solid #eee;padding:12px 10px;z-index:10}
     .status-badge{position:fixed;right:10px;bottom:10px;background:#222;color:#fff;padding:6px 10px;
       border-radius:8px;font:12px/1.2 system-ui;opacity:.95;z-index:99999}
-    .help{font-size:12px;color:#666}
-    .container{max-width:1100px;margin:0 auto}
-    .demo{display:grid;gap:8px;border:1px dashed #ddd;border-radius:8px;padding:10px;margin:12px 0}
-    .demo input,.demo textarea,.demo select{padding:8px;font-size:14px}
   </style>
 </head>
 <body>
-  <header class="container">
+  <header>
     <h1>Control rendimientos y pedidos — suite 3</h1>
-    <div class="help">Auto-guardado activado · Los campos se guardan en tu base de datos Neon a través de Netlify Functions.</div>
   </header>
 
-  <main class="container">
-    <!-- 🔽🔽🔽  AQUÍ VA TU APP EXISTENTE  🔽🔽🔽 -->
-    <!-- Si quieres, elimina el bloque “demo” de ejemplo de abajo -->
-    <section class="demo">
-      <strong>Bloque de ejemplo (puedes borrarlo):</strong>
-      <input id="ingrediente" name="ingrediente" placeholder="Ingrediente" />
-      <input id="peso_bruto" name="peso_bruto" type="number" placeholder="Peso bruto (g)" />
-      <textarea id="notas" name="notas" placeholder="Notas…"></textarea>
-      <select id="turno" name="turno">
-        <option value="">Selecciona turno…</option>
-        <option>Mañana</option>
-        <option>Tarde</option>
-      </select>
-    </section>
-    <!-- 🔼🔼🔼  FIN ZONA PARA TU APP  🔼🔼🔼 -->
-  </main>
+  <!-- 🔽🔽🔽 AQUÍ VA EL RESTO DE TU APP (tabs, tablas, etc.) 🔽🔽🔽 -->
+  <!-- Pega tu contenido original aquí, yo no lo modifiqué -->
+  <!-- 🔼🔼🔼 FIN APP 🔼🔼🔼 -->
 
-  <div id="autosave-badge" class="status-badge" role="status" aria-live="polite">Listo</div>
-
+  <!-- === INICIO: Sincronización con Neon vía Netlify Functions === -->
   <script>
-  /* ====== Auto-save global a Neon mediante Netlify Functions ======
-     - Guarda automáticamente cualquier <input>, <textarea> o <select>
-     - Restaura al cargar
-     - Cambia la KEY si quieres “perfiles” distintos (por ejemplo por usuario/turno)
-  */
-  const KEY = 'app_global_v1'; // <— cámbiala si quieres perfiles separados
-  const SAVE_URL = '/.netlify/functions/state-save';
-  const GET_URL  = '/.netlify/functions/state-get?key=' + encodeURIComponent(KEY);
+  (() => {
+    const SAVE_URL = '/.netlify/functions/state-save';
+    const GET_URL  = '/.netlify/functions/state-get?key=calc_suite3';
 
-  const badge = document.getElementById('autosave-badge');
-  const setBadge = (txt) => { badge.textContent = txt; };
+    // Badge de estado
+    const badge = document.createElement('div');
+    badge.id = 'sync-badge';
+    badge.className = 'status-badge';
+    badge.textContent = 'Listo';
+    window.addEventListener('load', () => document.body.appendChild(badge));
+    const setBadge = (t)=>{ const el=document.getElementById('sync-badge'); if(el) el.textContent=t; };
 
-  // Serializa todos los campos editables del documento
-  function serializeFormState() {
-    const data = {};
-    document.querySelectorAll('input, textarea, select').forEach(el => {
-      // Ignora campos sin id ni name para no guardar "ruido"
-      const k = el.name || el.id;
-      if (!k) return;
+    // Intenta detectar las claves usadas por tu app
+    const STORAGE1 = (window.STORAGE1 || 'ingredientes_data');
+    const STORAGE2 = (window.STORAGE2 || 'planificador_data');
 
-      if (el.type === 'checkbox') data[k] = el.checked;
-      else if (el.type === 'radio') { if (el.checked) data[k] = el.value; }
-      else data[k] = el.value;
-    });
-    return data;
-  }
-
-  // Aplica un estado a los campos
-  function applyFormState(data) {
-    if (!data || typeof data !== 'object') return;
-    for (const [k, v] of Object.entries(data)) {
-      // Selecciona por name o id
-      let el = document.querySelector(`[name="${CSS.escape(k)}"]`) || document.getElementById(k);
-      if (!el) continue;
-
-      if (el.type === 'checkbox') el.checked = !!v;
-      else if (el.type === 'radio') {
-        const r = document.querySelector(`input[type="radio"][name="${CSS.escape(k)}"][value="${CSS.escape(v)}"]`);
-        if (r) r.checked = true;
-      } else {
-        el.value = v;
+    async function remoteSave(key, data){
+      try{
+        setBadge('Guardando…');
+        await fetch(SAVE_URL, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ key, data })
+        });
+        setBadge('Guardado ✓');
+      }catch(e){
+        console.error('remoteSave error', e);
+        setBadge('Error al guardar');
       }
-      // Dispara evento por si tu app calcula cosas al escribir
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
     }
-  }
-
-  // Carga inicial
-  async function loadState() {
-    try {
-      setBadge('Cargando…');
-      const res = await fetch(GET_URL, { cache: 'no-store' });
-      const json = await res.json().catch(() => ({}));
-      if (json && json.data) applyFormState(json.data);
-      setBadge('Listo');
-    } catch (err) {
-      console.error('Error al cargar estado:', err);
-      setBadge('Error al cargar');
+    async function remoteLoad(key){
+      try{
+        setBadge('Cargando…');
+        const r = await fetch(GET_URL, { cache: 'no-store' });
+        const j = await r.json().catch(()=> ({}));
+        setBadge('Listo');
+        return j && j.data ? j.data : null;
+      }catch(e){
+        console.error('remoteLoad error', e);
+        setBadge('Error al cargar');
+        return null;
+      }
     }
-  }
 
-  // Guardado con debounce para no saturar
-  let timer;
-  function scheduleSave() { clearTimeout(timer); timer = setTimeout(saveState, 700); }
-
-  async function saveState() {
-    try {
-      setBadge('Guardando…');
-      const body = { key: KEY, data: serializeFormState() };
-      await fetch(SAVE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      setBadge('Guardado ✓');
-    } catch (err) {
-      console.error('Error al guardar estado:', err);
-      setBadge('Error al guardar');
+    // Guardar todo el estado de tabs 1 y 2
+    function syncSave(){
+      try{
+        const data = {
+          tab1: JSON.parse(localStorage.getItem(STORAGE1) || '{}'),
+          tab2: JSON.parse(localStorage.getItem(STORAGE2) || '{}')
+        };
+        remoteSave('calc_suite3', data);
+      }catch(e){ console.error('syncSave error', e); }
     }
-  }
 
-  // Escucha cambios en toda la página
-  document.addEventListener('input', scheduleSave, true);
-  document.addEventListener('change', scheduleSave, true);
+    // Engancha save1 y savePF
+    const _save1 = window.save1;
+    if (typeof _save1 === 'function') {
+      window.save1 = function(){ const r = _save1.apply(this, arguments); syncSave(); return r; };
+    }
+    const _savePF = window.savePF;
+    if (typeof _savePF === 'function') {
+      window.savePF = function(){ const r = _savePF.apply(this, arguments); syncSave(); return r; };
+    }
 
-  // Arranque
-  loadState();
+    // Carga inicial desde Neon y repuebla tablas
+    window.addEventListener('DOMContentLoaded', async () => {
+      const data = await remoteLoad('calc_suite3');
+      if (data) {
+        if (data.tab1) localStorage.setItem(STORAGE1, JSON.stringify(data.tab1));
+        if (data.tab2) localStorage.setItem(STORAGE2, JSON.stringify(data.tab2));
+        if (typeof window.restore1 === 'function') {
+          const t1 = document.getElementById('tbody1'); if (t1) t1.innerHTML = '';
+          window.restore1();
+        }
+        if (typeof window.restorePF === 'function') {
+          const tb = document.querySelector('#pfTable tbody'); if (tb) tb.innerHTML='';
+          window.restorePF();
+        }
+      }
+    });
+
+    // Backup: guardado por cambios globales
+    let timer;
+    function schedule(){ clearTimeout(timer); timer = setTimeout(syncSave, 800); }
+    document.addEventListener('input', schedule, true);
+    document.addEventListener('change', schedule, true);
+  })();
   </script>
+  <!-- === FIN: Sincronización con Neon vía Netlify Functions === -->
 
-  <script>
-  // (Opcional) registra el Service Worker si ya tienes sw.js
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(()=>{});
-  }
-  </script>
 </body>
 </html>
