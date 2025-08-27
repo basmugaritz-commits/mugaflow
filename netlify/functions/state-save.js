@@ -1,3 +1,4 @@
+// state-save.js
 import { sql } from './db.js';
 
 export default async (req) => {
@@ -38,10 +39,8 @@ export default async (req) => {
     `;
 
     await sql`
-      INSERT INTO app_state (key, data)
-      VALUES (${key}, ${data})
-      ON CONFLICT (key)
-      DO UPDATE SET data = ${data}, updated_at = now()
+      INSERT INTO app_state (key, data) VALUES (${key}, ${data})
+      ON CONFLICT (key) DO UPDATE SET data = ${data}, updated_at = now()
     `;
 
     return new Response(JSON.stringify({ ok: true }), {
