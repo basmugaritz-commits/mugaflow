@@ -1,119 +1,565 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <title>Control rendimientos y pedidos - suite 3</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#000000" />
-  <link rel="manifest" href="manifest.json" />
-  <style>
-    body{font-family:system-ui,Arial,sans-serif;margin:0;padding:0 12px 60px}
-    header{position:sticky;top:0;background:#fff;border-bottom:1px solid #eee;padding:12px 10px;z-index:10}
-    .status-badge{position:fixed;right:10px;bottom:10px;background:#222;color:#fff;padding:6px 10px;
-      border-radius:8px;font:12px/1.2 system-ui;opacity:.95;z-index:99999}
-  </style>
+<meta charset="UTF-8">
+<title>Control rendimientos y pedidos - suite 3</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<style>
+  :root{
+    --brown:#5a3e2b;
+    --brown-2:#7a5a44;
+    --light:#ffffff;
+    --muted:#f7f5f3;
+    --gray:#888;
+    --border:#e7e3df;
+  }
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:var(--muted);color:#222}
+  header{
+    position:sticky; top:0; z-index:50;
+    background:var(--light); border-bottom:1px solid var(--border);
+    padding:14px 16px;
+  }
+  header h1{margin:0; font-size:22px; color:var(--brown)}
+  .tabs{
+    display:flex; gap:8px; padding:10px 16px; background:var(--light); border-bottom:1px solid var(--border); position:sticky; top:58px; z-index:49;
+  }
+  .tab-btn{
+    background:#fff; border:1px solid var(--border); padding:8px 12px; border-radius:10px; cursor:pointer;
+  }
+  .tab-btn.active{background:var(--brown); color:#fff; border-color:var(--brown)}
+  main{padding:16px}
+  .card{background:#fff; border:1px solid var(--border); border-radius:12px; padding:14px; box-shadow:0 1px 0 rgba(0,0,0,.02)}
+  .section-title{margin:0 0 10px 0; color:var(--brown)}
+  .sticky-head{
+    position:sticky; top:114px; background:#fff; z-index:40; padding:8px 6px; border-bottom:1px solid var(--border);
+  }
+  table{width:100%; border-collapse:separate; border-spacing:0; background:#fff}
+  thead th{
+    position:sticky; top:154px; background:#fff; z-index:30; border-bottom:2px solid var(--border);
+    font-weight:600; padding:10px 8px; text-align:left; white-space:nowrap;
+  }
+  tbody td{border-bottom:1px solid var(--border); padding:8px 6px; vertical-align:middle}
+  tbody tr:nth-child(even){background:#faf9f8}
+  input[type="text"], input[type="number"]{
+    width:100%; padding:6px 8px; border:1px solid var(--border); border-radius:8px; outline:none;
+    background:#fff;
+  }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  input[type="number"]{ -moz-appearance: textfield; }
+  .btn{border:1px solid var(--brown); background:var(--brown); color:#fff; padding:8px 12px; border-radius:8px; cursor:pointer}
+  .btn.alt{background:#fff; color:var(--brown)}
+  .row-actions{display:flex; gap:6px}
+  .muted{color:var(--gray); font-size:12px}
+  .divider{height:14px}
+  .hidden{display:none}
+  .right{ text-align:right }
+  .small{ font-size:12px }
+  .note{ background:#fff7e6; border:1px solid #f2d7a6; color:#7a5a32; padding:8px 10px; border-radius:8px }
+  .search{ display:flex; gap:8px; }
+  .search input{ max-width:280px; }
+  .pill{ display:inline-block; background:#efefef; border-radius:14px; padding:4px 10px; font-size:12px; margin-left:6px }
+  /* badge de sync se añade por JS */
+</style>
 </head>
 <body>
-  <header>
-    <h1>Control rendimientos y pedidos — suite 3</h1>
-  </header>
 
-  <!-- 🔽🔽🔽 AQUÍ VA EL RESTO DE TU APP (tabs, tablas, etc.) 🔽🔽🔽 -->
-  <!-- Pega tu contenido original aquí, yo no lo modifiqué -->
-  <!-- 🔼🔼🔼 FIN APP 🔼🔼🔼 -->
+<header>
+  <h1>Control rendimientos y pedidos — suite 3</h1>
+</header>
 
-  <!-- === INICIO: Sincronización con Neon vía Netlify Functions === -->
-  <script>
-  (() => {
-    const SAVE_URL = '/.netlify/functions/state-save';
-    const GET_URL  = '/.netlify/functions/state-get?key=calc_suite3';
+<div class="tabs">
+  <button class="tab-btn active" data-tab="tab1">1) Mermas por fila</button>
+  <button class="tab-btn" data-tab="tab2">2) Planificador por rendimiento</button>
+  <button class="tab-btn" data-tab="tab3">3) Raciones globales</button>
+  <div style="flex:1"></div>
+  <div class="search">
+    <input id="globalSearch" type="text" placeholder="Buscar ingrediente…">
+    <button class="btn alt" id="btnSearch">Buscar</button>
+  </div>
+</div>
 
-    // Badge de estado
-    const badge = document.createElement('div');
-    badge.id = 'sync-badge';
-    badge.className = 'status-badge';
-    badge.textContent = 'Listo';
-    window.addEventListener('load', () => document.body.appendChild(badge));
-    const setBadge = (t)=>{ const el=document.getElementById('sync-badge'); if(el) el.textContent=t; };
+<main>
+  <!-- TAB 1 -->
+  <section id="tab1" class="card">
+    <h2 class="section-title">Ingredientes — Mermas, Planificador y Raciones Globales</h2>
+    <div class="sticky-head muted small">
+      INGREDIENTE · PESO BRUTO (G) · MERMA 1 · MERMA 2 · MERMA 3 · MERMA TOTAL · RENDIMIENTO (G) · RENDIMIENTO % · ACCIONES
+    </div>
 
-    // Intenta detectar las claves usadas por tu app
-    const STORAGE1 = (window.STORAGE1 || 'ingredientes_data');
-    const STORAGE2 = (window.STORAGE2 || 'planificador_data');
+    <div class="divider"></div>
 
-    async function remoteSave(key, data){
-      try{
-        setBadge('Guardando…');
-        await fetch(SAVE_URL, {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ key, data })
-        });
-        setBadge('Guardado ✓');
-      }catch(e){
-        console.error('remoteSave error', e);
-        setBadge('Error al guardar');
-      }
+    <div class="note small" style="margin-bottom:10px">
+      Consejos: cambia el nombre de “Merma 1/2/3” por “piel, espinas, recortes…” según el ingrediente.  
+      Cuando RENDIMIENTO supere 1000 g se muestra en kg con 3 decimales.
+      El % de rendimiento se muestra con 2 decimales.
+    </div>
+
+    <div style="margin-bottom:10px">
+      <button class="btn" id="addRow1">Añadir ingrediente</button>
+      <span class="pill">Hasta 999 g → g · ≥1000 g → kg</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Ingrediente</th>
+          <th class="right">Peso bruto (g)</th>
+          <th>Merma 1</th>
+          <th>Merma 2</th>
+          <th>Merma 3</th>
+          <th class="right">Merma total</th>
+          <th class="right">Rendimiento</th>
+          <th class="right">% Rend.</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tbody1"></tbody>
+    </table>
+
+    <div class="divider"></div>
+
+    <div class="note small">
+      Al final de cada fila verás “Planificador por raciones” (ingrediente único).  
+      Para el planificador global usa el Tab 2 o el Tab 3 (raciones globales).
+    </div>
+  </section>
+
+  <!-- TAB 2 -->
+  <section id="tab2" class="card hidden">
+    <h2 class="section-title">Planificador por rendimiento (global)</h2>
+
+    <div style="margin-bottom:10px">
+      <button class="btn" id="addPF">Añadir del Tab 1</button>
+      <button class="btn alt" id="clearPF">Vaciar planificador</button>
+    </div>
+
+    <table id="pfTable">
+      <thead>
+        <tr>
+          <th>Ingrediente</th>
+          <th class="right">Rendimiento %</th>
+          <th class="right">g/ración</th>
+          <th class="right">Raciones</th>
+          <th class="right">Bruto necesario</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="divider"></div>
+    <div class="note small">
+      Conversión automática g→kg a partir de 1000 g. Valores con 3 decimales en kg.
+    </div>
+  </section>
+
+  <!-- TAB 3 -->
+  <section id="tab3" class="card hidden">
+    <h2 class="section-title">Raciones globales</h2>
+
+    <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px">
+      <label for="globalRaciones"><strong>g/ración (global)</strong></label>
+      <input id="globalRaciones" type="number" min="0" step="0.01" placeholder="Ej. 12">
+      <label for="globalNum"><strong>Nº de raciones</strong></label>
+      <input id="globalNum" type="number" min="0" step="1" placeholder="Ej. 150">
+      <button class="btn" id="calcGlobal">Calcular</button>
+    </div>
+
+    <table id="globalTable">
+      <thead>
+        <tr>
+          <th>Ingrediente</th>
+          <th class="right">Rendimiento %</th>
+          <th class="right">g/ración</th>
+          <th class="right">Raciones</th>
+          <th class="right">Bruto necesario</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="divider"></div>
+    <div class="note small">
+      Este cálculo usa los ingredientes y % de rendimiento del Tab 1.
+    </div>
+  </section>
+</main>
+
+<script>
+  // ---------- Utilidades ----------
+  const $ = sel => document.querySelector(sel);
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+  // Formato gramos→kg si >= 1000 g
+  function fmtWeight(g){
+    const num = Number(g)||0;
+    if (num >= 1000){
+      const kg = num/1000;
+      return `${kg.toFixed(3)} kg`;
     }
-    async function remoteLoad(key){
-      try{
-        setBadge('Cargando…');
-        const r = await fetch(GET_URL, { cache: 'no-store' });
-        const j = await r.json().catch(()=> ({}));
-        setBadge('Listo');
-        return j && j.data ? j.data : null;
-      }catch(e){
-        console.error('remoteLoad error', e);
-        setBadge('Error al cargar');
-        return null;
-      }
-    }
+    return `${num} g`;
+  }
+  // Redondeo a 2 decimales para porcentajes
+  function fmtPct(x){
+    const n = Number(x)||0;
+    return `${n.toFixed(2)}%`;
+  }
 
-    // Guardar todo el estado de tabs 1 y 2
-    function syncSave(){
-      try{
-        const data = {
-          tab1: JSON.parse(localStorage.getItem(STORAGE1) || '{}'),
-          tab2: JSON.parse(localStorage.getItem(STORAGE2) || '{}')
-        };
-        remoteSave('calc_suite3', data);
-      }catch(e){ console.error('syncSave error', e); }
-    }
-
-    // Engancha save1 y savePF
-    const _save1 = window.save1;
-    if (typeof _save1 === 'function') {
-      window.save1 = function(){ const r = _save1.apply(this, arguments); syncSave(); return r; };
-    }
-    const _savePF = window.savePF;
-    if (typeof _savePF === 'function') {
-      window.savePF = function(){ const r = _savePF.apply(this, arguments); syncSave(); return r; };
-    }
-
-    // Carga inicial desde Neon y repuebla tablas
-    window.addEventListener('DOMContentLoaded', async () => {
-      const data = await remoteLoad('calc_suite3');
-      if (data) {
-        if (data.tab1) localStorage.setItem(STORAGE1, JSON.stringify(data.tab1));
-        if (data.tab2) localStorage.setItem(STORAGE2, JSON.stringify(data.tab2));
-        if (typeof window.restore1 === 'function') {
-          const t1 = document.getElementById('tbody1'); if (t1) t1.innerHTML = '';
-          window.restore1();
-        }
-        if (typeof window.restorePF === 'function') {
-          const tb = document.querySelector('#pfTable tbody'); if (tb) tb.innerHTML='';
-          window.restorePF();
-        }
-      }
+  // ---------- Navegación de tabs ----------
+  $$('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      $$('.tab-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+      ['tab1','tab2','tab3'].forEach(id=>{
+        const el = document.getElementById(id);
+        if (id===tab) el.classList.remove('hidden'); else el.classList.add('hidden');
+      });
     });
+  });
 
-    // Backup: guardado por cambios globales
-    let timer;
-    function schedule(){ clearTimeout(timer); timer = setTimeout(syncSave, 800); }
-    document.addEventListener('input', schedule, true);
-    document.addEventListener('change', schedule, true);
-  })();
-  </script>
-  <!-- === FIN: Sincronización con Neon vía Netlify Functions === -->
+  // ---------- Almacenamiento ----------
+  const STORAGE1 = 'ingredientes_data';
+  const STORAGE2 = 'planificador_data';
+
+  function load1(){
+    try{ return JSON.parse(localStorage.getItem(STORAGE1)||'{"rows":[]}'); }
+    catch(e){ return {rows:[]}; }
+  }
+  function save1(){
+    localStorage.setItem(STORAGE1, JSON.stringify(state1));
+  }
+  function loadPF(){
+    try{ return JSON.parse(localStorage.getItem(STORAGE2)||'{"rows":[]}'); }
+    catch(e){ return {rows:[]}; }
+  }
+  function savePF(){
+    localStorage.setItem(STORAGE2, JSON.stringify(statePF));
+  }
+
+  // ---------- Estado ----------
+  let state1 = load1();   // { rows:[ {name, bruto, m1n, m1v, m2n, m2v, m3n, m3v}, ... ] }
+  let statePF = loadPF(); // { rows:[ {name, pct, gram, raciones}, ...] }
+
+  // ---------- TAB 1: Render y lógica ----------
+  const tbody1 = $('#tbody1');
+
+  function addRow1(data={}){
+    const row = Object.assign({
+      name:'', bruto:'', m1n:'Merma 1', m1v:'', m2n:'Merma 2', m2v:'', m3n:'Merma 3', m3v:''
+    }, data);
+    state1.rows.push(row);
+    save1();
+    render1();
+  }
+
+  function delRow1(idx){
+    state1.rows.splice(idx,1);
+    save1();
+    render1();
+  }
+
+  function calcRow1(r){
+    const bruto = Number(r.bruto)||0;
+    const m1 = Number(r.m1v)||0;
+    const m2 = Number(r.m2v)||0;
+    const m3 = Number(r.m3v)||0;
+    const mermaTotal = m1+m2+m3;
+    const rend = Math.max(0, bruto - mermaTotal);
+    const pct = bruto>0 ? (rend/bruto*100) : 0;
+    return {mermaTotal, rend, pct};
+  }
+
+  function row1HTML(r, idx){
+    const c = calcRow1(r);
+    return `
+      <tr>
+        <td><input type="text" value="${r.name}" data-i="${idx}" data-k="name" placeholder="Ingrediente"></td>
+        <td class="right"><input type="number" value="${r.bruto}" data-i="${idx}" data-k="bruto" min="0" step="0.01" placeholder="0"></td>
+        <td>
+          <input type="text" value="${r.m1n}" data-i="${idx}" data-k="m1n" class="small" style="margin-bottom:4px">
+          <input type="number" value="${r.m1v}" data-i="${idx}" data-k="m1v" min="0" step="0.01" placeholder="0">
+        </td>
+        <td>
+          <input type="text" value="${r.m2n}" data-i="${idx}" data-k="m2n" class="small" style="margin-bottom:4px">
+          <input type="number" value="${r.m2v}" data-i="${idx}" data-k="m2v" min="0" step="0.01" placeholder="0">
+        </td>
+        <td>
+          <input type="text" value="${r.m3n}" data-i="${idx}" data-k="m3n" class="small" style="margin-bottom:4px">
+          <input type="number" value="${r.m3v}" data-i="${idx}" data-k="m3v" min="0" step="0.01" placeholder="0">
+        </td>
+        <td class="right">${fmtWeight(c.mermaTotal)}</td>
+        <td class="right">${fmtWeight(c.rend)}</td>
+        <td class="right">${fmtPct(c.pct)}</td>
+        <td>
+          <div class="row-actions">
+            <button class="btn alt" data-act="plan" data-i="${idx}">Planificador por raciones</button>
+            <button class="btn" data-act="del" data-i="${idx}">Eliminar</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }
+
+  function render1(){
+    tbody1.innerHTML = state1.rows.map(row1HTML).join('');
+  }
+
+  tbody1.addEventListener('input', e=>{
+    const el = e.target;
+    const i = Number(el.dataset.i);
+    const k = el.dataset.k;
+    if (Number.isInteger(i) && k){
+      state1.rows[i][k] = el.value;
+      save1();
+    }
+  });
+
+  tbody1.addEventListener('click', e=>{
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const i = Number(btn.dataset.i);
+    const act = btn.dataset.act;
+    if (act==='del') delRow1(i);
+    if (act==='plan'){
+      // Copiar a PF (si no existe, añadir)
+      const r = state1.rows[i];
+      const calc = calcRow1(r);
+      const pct = calc.pct; // %
+      // buscar por nombre
+      const ix = statePF.rows.findIndex(x=>x.name.trim().toLowerCase()===r.name.trim().toLowerCase());
+      const base = {name:r.name, pct: pct.toFixed(2), gram:'', raciones:''};
+      if (ix<0) statePF.rows.push(base);
+      else statePF.rows[ix] = Object.assign({}, statePF.rows[ix], {pct: pct.toFixed(2)});
+      savePF();
+      renderPF();
+      // cambiar a tab2
+      document.querySelector('[data-tab="tab2"]').click();
+    }
+  });
+
+  $('#addRow1').addEventListener('click', ()=> addRow1());
+
+  function restore1(){
+    state1 = load1();
+    render1();
+  }
+
+  // ---------- TAB 2: Planificador ----------
+  const pfBody = $('#pfTable tbody');
+
+  function addPFRow(row){
+    statePF.rows.push(Object.assign({name:'', pct:'', gram:'', raciones:''}, row||{}));
+    savePF();
+    renderPF();
+  }
+
+  function delPF(i){
+    statePF.rows.splice(i,1);
+    savePF();
+    renderPF();
+  }
+
+  function needBruto(pct, gr, n){
+    // si pct = 50% y necesito gr por ración * n raciones → bruto = (gr*n)/(pct/100)
+    const P = Number(pct)||0; const G = Number(gr)||0; const N = Number(n)||0;
+    if (P<=0) return 0;
+    return (G*N)/(P/100);
+  }
+
+  function pfRowHTML(r, i){
+    const bruto = needBruto(r.pct, r.gram, r.raciones);
+    return `
+      <tr>
+        <td><input type="text" value="${r.name}" data-i="${i}" data-k="name" placeholder="Ingrediente"></td>
+        <td class="right"><input type="number" value="${r.pct}" data-i="${i}" data-k="pct" step="0.01" min="0" max="100"></td>
+        <td class="right"><input type="number" value="${r.gram}" data-i="${i}" data-k="gram" step="0.01" min="0"></td>
+        <td class="right"><input type="number" value="${r.raciones}" data-i="${i}" data-k="raciones" step="1" min="0"></td>
+        <td class="right">${fmtWeight(bruto)}</td>
+        <td>
+          <div class="row-actions">
+            <button class="btn" data-act="del" data-i="${i}">Eliminar</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }
+
+  function renderPF(){
+    pfBody.innerHTML = statePF.rows.map(pfRowHTML).join('');
+  }
+
+  pfBody.addEventListener('input', e=>{
+    const el = e.target;
+    const i = Number(el.dataset.i);
+    const k = el.dataset.k;
+    if (Number.isInteger(i) && k){
+      statePF.rows[i][k] = el.value;
+      savePF();
+      renderPF(); // recalcular bruto en vivo
+    }
+  });
+
+  $('#addPF').addEventListener('click', ()=>{
+    // añadir todos los ingredientes que no estén
+    const names = new Set(statePF.rows.map(r=>r.name.trim().toLowerCase()));
+    for (const r of state1.rows){
+      const calc = calcRow1(r);
+      const pct = calc.pct.toFixed(2);
+      const key = r.name.trim().toLowerCase();
+      if (!names.has(key)){
+        statePF.rows.push({name:r.name, pct, gram:'', raciones:''});
+      }
+    }
+    savePF();
+    renderPF();
+  });
+
+  $('#clearPF').addEventListener('click', ()=>{
+    statePF = {rows:[]};
+    savePF();
+    renderPF();
+  });
+
+  function restorePF(){
+    statePF = loadPF();
+    renderPF();
+  }
+
+  // ---------- TAB 3: Raciones globales ----------
+  $('#calcGlobal').addEventListener('click', ()=>{
+    const grams = Number($('#globalRaciones').value)||0;
+    const num = Number($('#globalNum').value)||0;
+    const body = $('#globalTable tbody');
+    const rows = state1.rows.map(r=>{
+      const c = calcRow1(r);
+      const bruto = needBruto(c.pct, grams, num);
+      return `
+        <tr>
+          <td>${r.name||''}</td>
+          <td class="right">${fmtPct(c.pct)}</td>
+          <td class="right">${grams}</td>
+          <td class="right">${num}</td>
+          <td class="right">${fmtWeight(bruto)}</td>
+        </tr>
+      `;
+    }).join('');
+    body.innerHTML = rows;
+  });
+
+  // ---------- Búsqueda global ----------
+  $('#btnSearch').addEventListener('click', ()=>{
+    const q = ($('#globalSearch').value||'').trim().toLowerCase();
+    if (!q) return;
+    // Buscar en tab1, seleccionar primera coincidencia
+    const idx = state1.rows.findIndex(r => (r.name||'').trim().toLowerCase().includes(q));
+    if (idx>=0){
+      document.querySelector('[data-tab="tab1"]').click();
+      const tr = $('#tbody1').children[idx];
+      if (tr){
+        tr.scrollIntoView({behavior:'smooth', block:'center'});
+        tr.style.outline='2px solid #d59a4a';
+        setTimeout(()=> tr.style.outline='', 1800);
+      }
+    } else {
+      alert('No encontrado en Tab 1');
+    }
+  });
+
+  // ---------- Inicio ----------
+  restore1();
+  restorePF();
+</script>
+
+<!-- === INICIO: Sincronización con Neon vía Netlify Functions === -->
+<script>
+(() => {
+  const SAVE_URL = '/.netlify/functions/state-save';
+  const GET_URL  = '/.netlify/functions/state-get?key=calc_suite3';
+
+  const badge = document.createElement('div');
+  badge.id = 'sync-badge';
+  badge.style.cssText = 'position:fixed;right:10px;bottom:10px;background:#2b2b2b;color:#fff;padding:6px 10px;border-radius:8px;font:12px system-ui;opacity:.9;z-index:99999';
+  badge.textContent = 'Listo';
+  window.addEventListener('load', () => document.body.appendChild(badge));
+  const setBadge = (t)=>{ const el=document.getElementById('sync-badge'); if(el) el.textContent=t; };
+
+  const STORAGE1 = (window.STORAGE1 || 'ingredientes_data');
+  const STORAGE2 = (window.STORAGE2 || 'planificador_data');
+
+  async function remoteSave(key, data){
+    try{
+      setBadge('Guardando…');
+      await fetch(SAVE_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ key, data })
+      });
+      setBadge('Guardado ✓');
+    }catch(e){
+      console.error('remoteSave error', e);
+      setBadge('Error al guardar');
+    }
+  }
+  async function remoteLoad(key){
+    try{
+      setBadge('Cargando…');
+      const r = await fetch(GET_URL, { cache: 'no-store' });
+      const j = await r.json().catch(()=> ({}));
+      setBadge('Listo');
+      return j && j.data ? j.data : null;
+    }catch(e){
+      console.error('remoteLoad error', e);
+      setBadge('Error al cargar');
+      return null;
+    }
+  }
+
+  function syncSave(){
+    try{
+      const data = {
+        tab1: JSON.parse(localStorage.getItem(STORAGE1) || '{}'),
+        tab2: JSON.parse(localStorage.getItem(STORAGE2) || '{}')
+      };
+      remoteSave('calc_suite3', data);
+    }catch(e){ console.error('syncSave error', e); }
+  }
+
+  const _save1 = window.save1;
+  if (typeof _save1 === 'function') {
+    window.save1 = function(){ const r = _save1.apply(this, arguments); syncSave(); return r; };
+  }
+  const _savePF = window.savePF;
+  if (typeof _savePF === 'function') {
+    window.savePF = function(){ const r = _savePF.apply(this, arguments); syncSave(); return r; };
+  }
+
+  window.addEventListener('DOMContentLoaded', async () => {
+    const data = await remoteLoad('calc_suite3');
+    if (data) {
+      if (data.tab1) localStorage.setItem(STORAGE1, JSON.stringify(data.tab1));
+      if (data.tab2) localStorage.setItem(STORAGE2, JSON.stringify(data.tab2));
+      if (typeof window.restore1 === 'function') {
+        const t1 = document.getElementById('tbody1'); if (t1) t1.innerHTML = '';
+        window.restore1();
+      }
+      if (typeof window.restorePF === 'function') {
+        const tb = document.querySelector('#pfTable tbody'); if (tb) tb.innerHTML='';
+        window.restorePF();
+      }
+    }
+  });
+
+  let timer;
+  function schedule(){ clearTimeout(timer); timer = setTimeout(syncSave, 800); }
+  document.addEventListener('input', schedule, true);
+  document.addEventListener('change', schedule, true);
+})();
+</script>
+<!-- === FIN: Sincronización con Neon vía Netlify Functions === -->
 
 </body>
 </html>
