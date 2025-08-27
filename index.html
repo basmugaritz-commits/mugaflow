@@ -1,4 +1,6 @@
+
 <!DOCTYPE html>
+
 <html lang="es">
 <head>
 <meta charset="utf-8"/>
@@ -79,7 +81,6 @@
 </nav>
 </div>
 </header>
-
 <section class="wrap" id="tab1">
 <div class="toolbar">
 <div class="left flex">
@@ -114,11 +115,10 @@
 </tr>
 </thead>
 <tbody id="tbody1"></tbody>
-</table>
-<div style="margin-top:16px; text-align:right"><button class="secondary" id="gotoPlanBottom">Planificador por raciones</button></div>
+
+</table><div style="margin-top:16px; text-align:right"><button class="secondary" id="gotoPlanBottom">Planificador por raciones</button></div>
 <div class="footer-note" style="color:var(--muted);font-size:12px;margin-top:8px">Los datos se guardan en tu navegador (localStorage). Exporta CSV/JSON o imprime.</div>
 </section>
-
 <section class="wrap" id="tab2" style="display:none;">
 <div class="toolbar">
 <div class="left flex">
@@ -161,7 +161,6 @@
 </tfoot>
 </table>
 </section>
-
 <section class="wrap" id="tab3" style="display:none;">
 <div class="toolbar">
 <div class="left flex">
@@ -189,13 +188,10 @@
 </tr>
 </thead>
 <tbody></tbody>
+
 </table>
 </section>
-
 <script>
-/* ===========================
-   LÓGICA ORIGINAL (sin cambios)
-   =========================== */
 // ---------- Utilidades generales ----------
 const STORAGE1 = 'calc_tab1_v1';
 const STORAGE2 = 'calc_tab2_v1';
@@ -207,6 +203,7 @@ const SAFE_ARR = x => Array.isArray(x) ? x : [];
 function parseNum(x){ return parseFloat(String(x).replace(',', '.')) || 0; }
 function formatExact(n){
   const x = Number(n)||0;
+  // up to 10 decimals, then trim trailing zeros and dot; avoids visual rounding in most cases
   let s = x.toFixed(10);
   s = s.replace(/\.0+$/,'').replace(/(\.[0-9]*?)0+$/,'$1').replace(/\.$/,'');
   return s;
@@ -234,34 +231,44 @@ function showTab(id){
 }
 links.forEach(a=> a.addEventListener('click', (e)=>{ e.preventDefault(); showTab(a.dataset.tab); }));
 
-// ---------- TAB 1 ----------
+// ---------- TAB 1: Mermas por fila ----------
 const START_ROWS = 20;
 function addRow1(data={}){
   const tr = document.createElement('tr');
   tr.className = 'row';
+  // name
   const tdName = document.createElement('td');
   const name = document.createElement('input'); name.type='text'; name.className='name'; name.placeholder='Ingrediente'; name.value=data.name||''; tdName.appendChild(name); tr.appendChild(tdName);
+  // bruto
   const tdB = document.createElement('td');
   const bruto = document.createElement('input'); bruto.type='number'; bruto.step='any'; bruto.className='num neto'; bruto.placeholder='0'; bruto.value=data.bruto||''; tdB.appendChild(bruto); tr.appendChild(tdB);
+  // merma1
   const tdM1 = document.createElement('td'); tdM1.className='merma-cell';
   const m1l = document.createElement('input'); m1l.type='text'; m1l.className='merma-label m1label'; m1l.placeholder='Merma 1'; m1l.value=data.m1label||'';
   const m1 = document.createElement('input'); m1.type='number'; m1.step='any'; m1.className='num m1 merma-amount'; m1.placeholder='0'; m1.value=data.m1||'';
   const wrap1 = document.createElement('div'); wrap1.className='stack'; wrap1.append(m1l,m1); tdM1.appendChild(wrap1); tr.appendChild(tdM1);
+  // merma2
   const tdM2 = document.createElement('td'); tdM2.className='merma-cell';
   const m2l = document.createElement('input'); m2l.type='text'; m2l.className='merma-label m2label'; m2l.placeholder='Merma 2'; m2l.value=data.m2label||'';
   const m2 = document.createElement('input'); m2.type='number'; m2.step='any'; m2.className='num m2 merma-amount'; m2.placeholder='0'; m2.value=data.m2||'';
   const wrap2 = document.createElement('div'); wrap2.className='stack'; wrap2.append(m2l,m2); tdM2.appendChild(wrap2); tr.appendChild(tdM2);
+  // merma3
   const tdM3 = document.createElement('td'); tdM3.className='merma-cell';
   const m3l = document.createElement('input'); m3l.type='text'; m3l.className='merma-label m3label'; m3l.placeholder='Merma 3'; m3l.value=data.m3label||'';
   const m3 = document.createElement('input'); m3.type='number'; m3.step='any'; m3.className='num m3 merma-amount'; m3.placeholder='0'; m3.value=data.m3||'';
   const wrap3 = document.createElement('div'); wrap3.className='stack'; wrap3.append(m3l,m3); tdM3.appendChild(wrap3); tr.appendChild(tdM3);
+  // merma total
   const tdMt = document.createElement('td'); const mt = document.createElement('input'); mt.type='text'; mt.className='num readonly mt'; mt.readOnly=true; tdMt.appendChild(mt); tr.appendChild(tdMt);
+  // rendimiento g
   const tdR = document.createElement('td'); const rend = document.createElement('input'); rend.type='text'; rend.className='num readonly rend'; rend.readOnly=true; tdR.appendChild(rend); tr.appendChild(tdR);
+  // rendimiento %
   const tdPct = document.createElement('td'); const pct = document.createElement('input'); pct.type='text'; pct.className='num readonly pct'; pct.readOnly=true; tdPct.appendChild(pct); tr.appendChild(tdPct);
+  // actions
   const tdA = document.createElement('td');
   const del = document.createElement('button'); del.className='ghost small'; del.textContent='Eliminar';
   del.addEventListener('click', ()=>{ tr.remove(); recalc1(); save1(); });
   tdA.appendChild(del); tr.appendChild(tdA);
+
   [name, bruto, m1, m2, m3, m1l, m2l, m3l].forEach(inp=> inp.addEventListener('input', ()=>{ recalc1(); save1(); }));
   $('#tbody1').appendChild(tr);
 }
@@ -281,14 +288,14 @@ function recalc1(){
     tr.querySelector('.pct').value = fmtPct(pct);
     tB += bruto; tM1+=m1; tM2+=m2; tM3+=m3; tMt+=mt; tR+=rend;
   });
-  $('#t1TotBruto')?.textContent = fmtWeight(tB);
-  $('#t1TotM1')?.textContent = fmtWeight(tM1);
-  $('#t1TotM2')?.textContent = fmtWeight(tM2);
-  $('#t1TotM3')?.textContent = fmtWeight(tM3);
-  $('#t1TotMerma')?.textContent = fmtWeight(tMt);
-  $('#t1TotRend')?.textContent = fmtWeight(tR);
+  $('#t1TotBruto').textContent = fmtWeight(tB);
+  $('#t1TotM1').textContent = fmtWeight(tM1);
+  $('#t1TotM2').textContent = fmtWeight(tM2);
+  $('#t1TotM3').textContent = fmtWeight(tM3);
+  $('#t1TotMerma').textContent = fmtWeight(tMt);
+  $('#t1TotRend').textContent = fmtWeight(tR);
   const pctGlobal = tB>0 ? (tR/tB*100) : 0;
-  $('#t1TotPct')?.textContent = fmtPct(pctGlobal);
+  $('#t1TotPct').textContent = fmtPct(pctGlobal);
 }
 
 function save1(){
@@ -389,7 +396,7 @@ $('#exportJSON1').addEventListener('click', ()=>{
 });
 $('#print1').addEventListener('click', ()=> window.print());
 
-// ---------- TAB 2 ----------
+// ---------- TAB 2: Planificador por rendimiento ----------
 function addRowPF(data={}){
   const tr = document.createElement('tr'); tr.className='row';
   const tdN = document.createElement('td'); const name = elInput('pfName', data.name||''); tdN.appendChild(name); tr.appendChild(tdN);
@@ -488,6 +495,7 @@ $('#pfImport').addEventListener('click', ()=>{
       addRowPF({name:n, pct});
       names.add(n.toLowerCase());
     }else{
+      // update existing
       $$('#pfTable tbody tr').forEach(r=>{
         if((r.querySelector('.pfName').value||'').trim().toLowerCase()===n.toLowerCase()){
           r.querySelector('.pfPct').value = pct;
@@ -502,7 +510,7 @@ function elInput(cls, val){ const i=document.createElement('input'); i.type='tex
 function elNum(cls, val){ const i=document.createElement('input'); i.type='number'; i.step='any'; i.className='num '+cls; i.value=val; i.placeholder='0'; return i; }
 function elRO(cls){ const i=document.createElement('input'); i.type='text'; i.readOnly=true; i.className='num readonly '+cls; return i; }
 
-// ---------- TAB 3 ----------
+// ---------- TAB 3: Raciones globales ----------
 function qpBuild(){
   const tbody = $('#qpTable tbody'); tbody.innerHTML='';
   const raciones = Math.max(0, parseNum($('#qpRaciones').value||0));
@@ -519,8 +527,8 @@ function qpBuild(){
     tbody.appendChild(row);
     totR += raciones; totB += bruto;
   });
-  $('#qpTotRac')?.textContent = formatExact(totR);
-  $('#qpTotBruto')?.textContent = fmtWeight(totB);
+  $('#qpTotRac').textContent = formatExact(totR);
+  $('#qpTotBruto').textContent = fmtWeight(totB);
 }
 $('#qpRaciones').addEventListener('input', qpBuild);
 $('#qpGRacion').addEventListener('input', qpBuild);
@@ -551,20 +559,25 @@ function download(filename, content, mime){
 // ---------- INIT ----------
 (function init(){
   restore1();
+  // Ensure at least one row in planificador full for UX
   restorePF();
   if($$('#pfTable tbody tr').length===0) addRowPF();
   recalcPF();
+  // Default tab: 1
   showTab('tab1');
 })();
 
+
 function gotoPlannerWith({name, pct, g, r}){
   showTab('tab2');
+  // find existing row
   let existing = null;
   document.querySelectorAll('#pfTable tbody tr').forEach(tr=>{
     const n = (tr.querySelector('.pfName').value||'').trim().toLowerCase();
     if(n === String(name||'').trim().toLowerCase()) existing = tr;
   });
   if(!existing){
+    // add new
     const data = {name: name||'', pct: pct||'', gramos: g||'', raciones: r||''};
     addRowPF(data);
   }else{
@@ -576,110 +589,8 @@ function gotoPlannerWith({name, pct, g, r}){
 }
 document.getElementById('gotoPlan').addEventListener('click', ()=> showTab('tab2'));
 document.getElementById('gotoGlobal').addEventListener('click', ()=> showTab('tab3'));
+
 document.getElementById('gotoPlanBottom').addEventListener('click', ()=> showTab('tab2'));
 </script>
-
-<!-- ===========================
-     SINCRONIZACIÓN ONLINE (NUEVO)
-     =========================== -->
-<script>
-(() => {
-  const SAVE_URL = '/.netlify/functions/state-save';
-  const GET_URL  = '/.netlify/functions/state-get?key=calc_suite3';
-  const KEY1 = STORAGE1; // 'calc_tab1_v1'
-  const KEY2 = STORAGE2; // 'calc_tab2_v1'
-
-  // Badge de estado
-  const badge = document.createElement('div');
-  badge.id = 'sync-badge';
-  badge.style.cssText='position:fixed;right:10px;bottom:10px;background:#2b2b2b;color:#fff;padding:6px 10px;border-radius:8px;font:12px system-ui;opacity:.9;z-index:99999';
-  badge.textContent='Listo';
-  window.addEventListener('load', ()=>document.body.appendChild(badge));
-  const setBadge = t => { const b=document.getElementById('sync-badge'); if (b) b.textContent=t; };
-
-  async function remoteSave(payload){
-    try {
-      setBadge('Guardando…');
-      await fetch(SAVE_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      setBadge('Guardado ✓');
-    } catch(e){ console.error(e); setBadge('Error al guardar'); }
-  }
-  async function remoteLoad(){
-    try {
-      setBadge('Cargando…');
-      const r = await fetch(GET_URL, { cache:'no-store' });
-      const j = await r.json().catch(()=>({}));
-      setBadge('Listo');
-      return j && j.data ? j.data : null;
-    } catch(e){ console.error(e); setBadge('Error al cargar'); return null; }
-  }
-  function snapshot(){
-    return {
-      tab1: JSON.parse(localStorage.getItem(KEY1) || '{}'),
-      tab2: JSON.parse(localStorage.getItem(KEY2) || '{}')
-    };
-  }
-  function apply(data){
-    if (data?.tab1) localStorage.setItem(KEY1, JSON.stringify(data.tab1));
-    if (data?.tab2) localStorage.setItem(KEY2, JSON.stringify(data.tab2));
-    if (typeof window.restore1 === 'function') window.restore1();
-    if (typeof window.restorePF === 'function') window.restorePF();
-    if (typeof window.recalcPF === 'function') window.recalcPF();
-    if (typeof window.qpBuild === 'function') window.qpBuild();
-  }
-
-  // Guardado automático con debounce
-  let t;
-  const schedule = () => { clearTimeout(t); t = setTimeout(()=> remoteSave({ key:'calc_suite3', data: snapshot() }), 700); };
-  document.addEventListener('input', schedule, true);
-  document.addEventListener('change', schedule, true);
-
-  // Enlazar a tus funciones existentes
-  ['save1','savePF'].forEach(fn=>{
-    const orig = window[fn];
-    if (typeof orig === 'function'){
-      window[fn] = function(){ const r = orig.apply(this, arguments); schedule(); return r; };
-    }
-  });
-
-  // Primera carga (intenta servidor, si no, sigue con local)
-  window.addEventListener('DOMContentLoaded', async ()=>{
-    const data = await remoteLoad();
-    if (data) apply(data);
-  });
-})();
-</script>
-
-<script>
-/* Parche de inicialización forzada: crea filas si el JS principal no ha corrido
-   y reengancha las pestañas. No rompe nada si el resto ya funciona. */
-(function () {
-  function forceRows() {
-    try {
-      if (!document.querySelector('#tbody1 tr')) {
-        if (typeof addRow1 === 'function') {
-          for (let i = 0; i < 20; i++) addRow1();
-          if (typeof recalc1 === 'function') recalc1();
-        }
-      }
-    } catch (e) { /* silencio */ }
-  }
-  function wireTabs() {
-    try {
-      document.querySelectorAll('.tablink').forEach(a => {
-        a.addEventListener('click', (e) => {
-          e.preventDefault();
-          if (typeof showTab === 'function') showTab(a.dataset.tab);
-        });
-      });
-    } catch (e) { /* silencio */ }
-  }
-  // Espera a que el DOM esté listo y aplica
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => { forceRows(); wireTabs(); });
-  } else {
-    forceRows(); wireTabs();
-  }
-})();
-</script>/body>
+</body>
 </html>
