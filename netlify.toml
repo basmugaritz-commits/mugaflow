@@ -2,20 +2,13 @@
   publish = "."
   functions = "netlify/functions"
 
+  # Node usado en build (y por defecto en Functions si no indicas otra cosa)
+  [build.environment]
+    NODE_VERSION = "20"
+
 [functions]
   node_bundler = "esbuild"
 
-# Opcional: redirige /api/* a las funciones (si quieres rutas bonitas)
-#[[redirects]]
-#  from = "/api/state-save"
-#  to   = "/.netlify/functions/state-save"
-#  status = 200
-#[[redirects]]
-#  from = "/api/state-get"
-#  to   = "/.netlify/functions/state-get"
-#  status = 200
-
-# Seguridad mínima (ajústalo si usas recursos de terceros)
 [[headers]]
   for = "/*"
   [headers.values]
