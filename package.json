@@ -1,18 +1,11 @@
 {
   "name": "ingredientes-mermas-state",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=18" },
+  "engines": { "node": ">=20" },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.0"
   },
   "devDependencies": {
     "netlify-cli": "^17.0.0"
-  },
-  "scripts": {
-    "dev": "netlify dev",
-    "start": "netlify dev",
-    "build": "echo \"No build step for static site\""
-  }
-}
