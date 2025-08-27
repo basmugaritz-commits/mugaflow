@@ -1,51 +1,60 @@
+// netlify/functions/state-get.js
 import { sql } from './db.js';
 
-export default async (req) => {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
-  };
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
 
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers });
-  }
-
-  if (req.method !== 'GET') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers
-    });
-  }
-
+export const handler = async (event) => {
   try {
-    const url = new URL(req.url);
-    const key = url.searchParams.get('key');
+    // Preflight
+    if (event.httpMethod === 'OPTIONS') {
+      return { statusCode: 204, headers: corsHeaders, body: '' };
+    }
+
+    let key = '';
+
+    if (event.httpMethod === 'GET') {
+      const params = new URLSearchParams(event.rawQuery || '');
+      key = params.get('key') || '';
+    } else if (event.httpMethod === 'POST') {
+      const body = JSON.parse(event.body || '{}');
+      key = body.key || '';
+    } else {
+      return {
+        statusCode: 405,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'Method not allowed' }),
+      };
+    }
 
     if (!key) {
-      return new Response(JSON.stringify({ error: 'Missing key' }), {
-        status: 400,
-        headers
-      });
+      return {
+        statusCode: 400,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'Missing key' }),
+      };
     }
 
-    const rows = await sql`SELECT data FROM app_state WHERE key = ${key}`;
-    if (rows.length === 0) {
-      return new Response(JSON.stringify({ error: 'Not found' }), {
-        status: 404,
-        headers
-      });
+    const rows = await sql/* sql */`
+      SELECT data FROM app_state WHERE state_key = ${key}
+    `;
+    if (!rows || rows.length === 0) {
+      return { statusCode: 404, headers: corsHeaders, body: JSON.stringify({ error: 'Not found' }) };
     }
 
-    return new Response(JSON.stringify({ data: rows[0].data }), {
-      status: 200,
-      headers
-    });
-
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: JSON.stringify({ data: rows[0].data }),
+    };
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers
-    });
+    return {
+      statusCode: 500,
+      headers: corsHeaders,
+      body: JSON.stringify({ error: String(err?.message || err) }),
+    };
   }
 };
