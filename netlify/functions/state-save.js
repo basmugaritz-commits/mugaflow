@@ -1,56 +1,63 @@
+// netlify/functions/state-save.js
 import { sql } from './db.js';
 
-export default async (req) => {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
-  };
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST,OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
 
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers });
-  }
-
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers
-    });
-  }
-
+export const handler = async (event) => {
   try {
-    const body = await req.json();
+    // Preflight
+    if (event.httpMethod === 'OPTIONS') {
+      return { statusCode: 204, headers: corsHeaders, body: '' };
+    }
+
+    if (event.httpMethod !== 'POST') {
+      return {
+        statusCode: 405,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'Method not allowed' }),
+      };
+    }
+
+    const body = JSON.parse(event.body || '{}');
     const { key, data } = body;
 
     if (!key || !data) {
-      return new Response(JSON.stringify({ error: 'Missing key or data' }), {
-        status: 400,
-        headers
-      });
+      return {
+        statusCode: 400,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'Missing key or data' }),
+      };
     }
 
-    await sql`
+    await sql/* sql */`
       CREATE TABLE IF NOT EXISTS app_state (
-        key TEXT PRIMARY KEY,
+        state_key TEXT PRIMARY KEY,
         data JSONB NOT NULL,
         updated_at TIMESTAMP NOT NULL DEFAULT now()
       )
     `;
 
-    await sql`
-      INSERT INTO app_state (key, data) VALUES (${key}, ${data})
-      ON CONFLICT (key) DO UPDATE SET data = ${data}, updated_at = now()
+    await sql/* sql */`
+      INSERT INTO app_state (state_key, data)
+      VALUES (${key}, ${data})
+      ON CONFLICT (state_key)
+      DO UPDATE SET data = ${data}, updated_at = now()
     `;
 
-    return new Response(JSON.stringify({ ok: true }), {
-      status: 200,
-      headers
-    });
-
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: JSON.stringify({ ok: true }),
+    };
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers
-    });
+    return {
+      statusCode: 500,
+      headers: corsHeaders,
+      body: JSON.stringify({ error: String(err?.message || err) }),
+    };
   }
 };
