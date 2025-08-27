@@ -650,5 +650,36 @@ document.getElementById('gotoPlanBottom').addEventListener('click', ()=> showTab
 })();
 </script>
 
-</body>
+<script>
+/* Parche de inicialización forzada: crea filas si el JS principal no ha corrido
+   y reengancha las pestañas. No rompe nada si el resto ya funciona. */
+(function () {
+  function forceRows() {
+    try {
+      if (!document.querySelector('#tbody1 tr')) {
+        if (typeof addRow1 === 'function') {
+          for (let i = 0; i < 20; i++) addRow1();
+          if (typeof recalc1 === 'function') recalc1();
+        }
+      }
+    } catch (e) { /* silencio */ }
+  }
+  function wireTabs() {
+    try {
+      document.querySelectorAll('.tablink').forEach(a => {
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (typeof showTab === 'function') showTab(a.dataset.tab);
+        });
+      });
+    } catch (e) { /* silencio */ }
+  }
+  // Espera a que el DOM esté listo y aplica
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => { forceRows(); wireTabs(); });
+  } else {
+    forceRows(); wireTabs();
+  }
+})();
+</script>/body>
 </html>
