@@ -1,60 +1,58 @@
-// netlify/functions/state-get.js
 import { sql } from './db.js';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
+export default async (req) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+  };
 
-export const handler = async (event) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers
+    });
+  }
+
   try {
-    // Preflight
-    if (event.httpMethod === 'OPTIONS') {
-      return { statusCode: 204, headers: corsHeaders, body: '' };
+    const body = await req.json();
+    const { key, data } = body;
+
+    if (!key || !data) {
+      return new Response(JSON.stringify({ error: 'Missing key or data' }), {
+        status: 400,
+        headers
+      });
     }
 
-    let key = '';
-
-    if (event.httpMethod === 'GET') {
-      const params = new URLSearchParams(event.rawQuery || '');
-      key = params.get('key') || '';
-    } else if (event.httpMethod === 'POST') {
-      const body = JSON.parse(event.body || '{}');
-      key = body.key || '';
-    } else {
-      return {
-        statusCode: 405,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: 'Method not allowed' }),
-      };
-    }
-
-    if (!key) {
-      return {
-        statusCode: 400,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: 'Missing key' }),
-      };
-    }
-
-    const rows = await sql/* sql */`
-      SELECT data FROM app_state WHERE state_key = ${key}
+    await sql`
+      CREATE TABLE IF NOT EXISTS app_state (
+        key TEXT PRIMARY KEY,
+        data JSONB NOT NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT now()
+      )
     `;
-    if (!rows || rows.length === 0) {
-      return { statusCode: 404, headers: corsHeaders, body: JSON.stringify({ error: 'Not found' }) };
-    }
 
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: JSON.stringify({ data: rows[0].data }),
-    };
+    await sql`
+      INSERT INTO app_state (key, data)
+      VALUES (${key}, ${data})
+      ON CONFLICT (key)
+      DO UPDATE SET data = ${data}, updated_at = now()
+    `;
+
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers
+    });
+
   } catch (err) {
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: String(err?.message || err) }),
-    };
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers
+    });
   }
 };
