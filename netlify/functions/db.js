@@ -1,13 +1,8 @@
-import { Pool } from '@neondatabase/serverless';
+import { neon } from '@neondatabase/serverless';
 
-const pool = new Pool({ connectionString: process.env.NETLIFY_DATABASE_URL });
+// Crea una instancia global de la función sql (tagged template)
+const url = process.env.NETLIFY_DATABASE_URL;
+if (!url) throw new Error('Missing NETLIFY_DATABASE_URL');
 
-export async function query(text, params) {
-  const client = await pool.connect();
-  try {
-    const res = await client.query(text, params);
-    return res;
-  } finally {
-    client.release();
-  }
-}
+// Exporta 'sql' como requiere state-get/state-save
+export const sql = neon(url);
